@@ -1,3 +1,4 @@
+====================================================Pyhton===============================================
 #要想help(自创函数)有显示，则要在自创函数里面注释。
 
 #help(planets.append) append单独对List起作用   所以用help时要在append前加对应list.
@@ -38,7 +39,7 @@ return any(meals[i] == meals[i+1] for i in range(len(meals)-1)) 一般直接上�
 
 *一个for循环里出现return即结束循环，所以要注意出现两个return的情况，一般便利只有一个return在for里面
 
-========================================STRING AND DIC============================================
+---------------------------------------------STRING AND DIC-----------------------------------------------
 STRING
 # ALL CAPS
 claim = "Pluto is a planet!"
@@ -91,7 +92,7 @@ dwarf planet!
         # Periods and commas are removed from the end of each word, and it's set to all lowercase.
         normalized = [token.rstrip('.,').lower() for token in tokens
 
-========================================panda==================================================
+========================================pandas==================================================
 *
 pd.set_option("display.max_rows", 5)
 
@@ -212,7 +213,7 @@ bargain_wine = reviews.loc[bargain_idx, 'title']
 
 
 
-=========================数据可视化============================
+=========================Data visualization============================
 #初始化
 import pandas as pd
 pd.plotting.register_matplotlib_converters()
