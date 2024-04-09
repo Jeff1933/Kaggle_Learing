@@ -1,0 +1,272 @@
+++++++++++++++++++++++++++++++++++++SQL+++++++++++++++++++++++++++++++++++++++
+
+# 前期工作
+from google.cloud import bigquery
+
+# Create a "Client" object
+client = bigquery.Client()
+
+# Construct a reference to the "chicago_crime" dataset, 这意思是来自project-"bigquery-public-data"中的一个名叫"chicago crime"的数据集
+dataset_ref = client.dataset("chicago_crime", project="bigquery-public-data")   
+
+# API request - fetch the dataset
+dataset = client.get_dataset(dataset_ref)
+
+# 计算数据集里面有多少个表
+# List all the tables in the "hacker_news" dataset
+tables = list(client.list_tables(dataset))
+
+# Print names of all tables in the dataset (there are four!)
+for table in tables:  
+    print(table.table_id)
+
+# 拿到其中一个表
+# Construct a reference to the "full" table
+table_ref = dataset_ref.table("full")
+
+# API request - fetch the table
+table = client.get_table(table_ref)
+
+# 展示这个表里面的情况
+table.schema 
+
+# 展示前五行
+client.list_rows(table, max_results=5).to_dataframe()
+#展示某一列前五行
+client.list_rows(table, selected_fields=table.schema[:1], max_results=5).to_dataframe()
+
+query = """
+        SELECT city
+        FROM `bigquery-public-data.openaq.global_air_quality`
+        WHERE country = 'US'
+        """
+# FROM的参数使用的是反引号`
+
+# 下面是评估检索需要耗费多少mb
+# Query to get the score column from every row where the type column has value "job"
+query = """
+        SELECT score, title
+        FROM `bigquery-public-data.hacker_news.full`
+        WHERE type = "job" 
+        """
+
+# Create a QueryJobConfig object to estimate size of query without running it
+dry_run_config = bigquery.QueryJobConfig(dry_run=True)
+
+# API request - dry run query to estimate costs
+dry_run_query_job = client.query(query, job_config=dry_run_config)
+
+print("This query will process {} bytes.".format(dry_run_query_job.total_bytes_processed))
+
+# 如果语句消耗小于1GB才会执行
+# Only run the query if it's less than 1 GB
+ONE_GB = 1000*1000*1000
+safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=ONE_GB)
+
+# Set up the query (will only run if it's less than 1 GB)
+safe_query_job = client.query(query, job_config=safe_config)
+
+# API request - try to run the query, and return a pandas DataFrame
+job_post_scores = safe_query_job.to_dataframe()
+
+# Print average score for job posts
+job_post_scores.score.mean()
+
+# tips
+1. SELECT DISTINCT country ...`. The DISTINCT keyword ensures each column shows up once
+
+# COUNT GROUPBY HAVING
+
+# Query to select comments that received more than 10 replies
+query_popular = """
+                SELECT parent, COUNT(id)
+                FROM `bigquery-public-data.hacker_news.full`
+                GROUP BY parent
+                HAVING COUNT(id) > 10
+                """
+# Improved version of earlier query, now with aliasing & improved readability
+query_improved = """
+                 SELECT parent, COUNT(1) AS NumPosts
+                 FROM `bigquery-public-data.hacker_news.full`
+                 GROUP BY parent
+                 HAVING COUNT(1) > 10
+                 """
+
+query_bad = """
+            SELECT `by` AS author, parent, COUNT(id)
+            FROM `bigquery-public-data.hacker_news.full`
+            GROUP BY parent
+            """      注意，这是bad的语句 因为没有有聚类语句。如COUNT(), GROUP BY， 另外by因为是GROUP BY的子句，所以选择时要用反引号
+
+# Query to find out the number of accidents for each day of the week
+query = """
+        SELECT COUNT(consecutive_number) AS num_accidents, 
+               EXTRACT(DAYOFWEEK FROM timestamp_of_crash) AS day_of_week
+        FROM `bigquery-public-data.nhtsa_traffic_fatalities.accident_2015`
+        GROUP BY day_of_week
+        ORDER BY num_accidents DESC
+        """
+* EXTRACT 有DAY/WEEK/DAYOFWEEK等提取方式
+
+# 有价值的示例，注意WHERE那行的条件怎么写
+1.
+country_spend_pct_query = """
+                          SELECT country_name, AVG(value) AS avg_ed_spending_pct
+                          FROM `bigquery-public-data.world_bank_intl_education.international_education`
+                          WHERE indicator_code = 'SE.XPD.TOTL.GD.ZS' and year >= 2010 and year <= 2017
+                          GROUP BY country_name
+                          ORDER BY avg_ed_spending_pct DESC
+                          """
+2.
+# 注意只要对原表格设立条件的可以用WHERE, 但要对复合函数COUNT()设立条件就要用到HAVING
+code_count_query = """
+                   SELECT indicator_code, indicator_name, COUNT(1) AS num_rows
+                   FROM `bigquery-public-data.world_bank_intl_education.international_education`
+                   WHERE year = 2016
+                   GROUP BY indicator_name, indicator_code
+                   HAVING COUNT(1) >= 175
+                   ORDER BY COUNT(1) DESC
+                   """
+# AS WITH
+transactions_by_date.set_index('trans_date').plot()
+
+# Query to select the number of transactions per date, sorted by date
+query_with_CTE = """ 
+                 WITH time AS 
+                 (
+                     SELECT DATE(block_timestamp) AS trans_date
+                     FROM `bigquery-public-data.crypto_bitcoin.transactions`
+                 )
+                 SELECT COUNT(1) AS transactions,
+                        trans_date
+                 FROM time
+                 GROUP BY trans_date
+                 ORDER BY trans_date
+                 """
+Since the block_timestamp column contains the date of each transaction in DATETIME format, we'll convert these into DATE format using the DATE() command.
+
+# JOIN 合并表用法
+# Query to determine the number of files per license, sorted by number of files
+query = """
+        SELECT L.license, COUNT(1) AS number_of_files
+        FROM `bigquery-public-data.github_repos.sample_files` AS sf
+        INNER JOIN `bigquery-public-data.github_repos.licenses` AS L 
+            ON sf.repo_name = L.repo_name
+        GROUP BY L.license
+        ORDER BY number_of_files DESC
+        """
+
+def expert_finder(topic, client):
+    '''
+    Returns a DataFrame with the user IDs who have written Stack Overflow answers on a topic.
+
+    Inputs:
+        topic: A string with the topic of interest
+        client: A Client object that specifies the connection to the Stack Overflow dataset
+
+    Outputs:
+        results: A DataFrame with columns for user_id and number_of_answers. Follows similar logic to bigquery_experts_results shown above.
+    '''
+    my_query = """
+               SELECT a.owner_user_id AS user_id, COUNT(1) AS number_of_answers
+               FROM `bigquery-public-data.stackoverflow.posts_questions` AS q
+               INNER JOIN `bigquery-public-data.stackoverflow.posts_answers` AS a
+                   ON q.id = a.parent_Id
+               WHERE q.tags like '%{topic}%'
+               GROUP BY a.owner_user_id
+               """
+
+    # Set up the query (a real service would have good error handling for 
+    # queries that scan too much data)
+    safe_config = bigquery.QueryJobConfig(maximum_bytes_billed=10**10)      
+    my_query_job = client.query(my_query, job_config=safe_config)
+
+    # API request - run the query, and return a pandas DataFrame
+    results = my_query_job.to_dataframe()
+
+    return results
+
+COUNT(1)还有计算大于1的功效
+
+
+# JOINs and UNIONs
+
+# Query to select all stories posted on January 1, 2012, with number of comments
+join_query = """
+             WITH c AS
+             (
+             SELECT parent, COUNT(*) as num_comments
+             FROM `bigquery-public-data.hacker_news.comments` 
+             GROUP BY parent
+             )
+             SELECT s.id as story_id, s.by, s.title, c.num_comments
+             FROM `bigquery-public-data.hacker_news.stories` AS s
+             LEFT JOIN c
+             ON s.id = c.parent
+             WHERE EXTRACT(DATE FROM s.time_ts) = '2012-01-01'
+             ORDER BY c.num_comments DESC
+             """
+join_result = client.query(join_query).result().to_dataframe()
+
+# Query to select all users who posted stories or comments on January 1, 2014
+union_query = """
+              SELECT c.by
+              FROM `bigquery-public-data.hacker_news.comments` AS c
+              WHERE EXTRACT(DATE FROM c.time_ts) = '2014-01-01'
+              UNION DISTINCT
+              SELECT s.by
+              FROM `bigquery-public-data.hacker_news.stories` AS s
+              WHERE EXTRACT(DATE FROM s.time_ts) = '2014-01-01'
+              """
+union_result = client.query(union_query).result().to_dataframe()
+len(union_result)
+
+# Your code here
+correct_query = """
+                  SELECT q.id AS q_id,
+                      MIN(TIMESTAMP_DIFF(a.creation_date, q.creation_date, SECOND)) as time_to_answer
+                  FROM `bigquery-public-data.stackoverflow.posts_questions` AS q
+                      LEFT JOIN `bigquery-public-data.stackoverflow.posts_answers` AS a
+                  ON q.id = a.parent_id
+                  WHERE q.creation_date >= '2018-01-01' and q.creation_date < '2018-02-01'
+                  GROUP BY q_id
+                  ORDER BY time_to_answer
+                  """
+
+# Check your answer
+q_1.check()
+
+# Run the query, and return a pandas DataFrame
+correct_result = client.query(correct_query).result().to_dataframe()
+print("Percentage of answered questions: %s%%" % \
+      (sum(correct_result["time_to_answer"].notnull()) / len(correct_result) * 100))
+print("Number of questions:", len(correct_result))
+
+# Your code here                        寻找每个人发的第一个问题与回答的第一个问题的时间
+q_and_a_query = """
+                SELECT q.owner_user_id AS owner_user_id,
+                    MIN(q.creation_date) AS q_creation_date,
+                    MIN(a.creation_date) AS a_creation_date
+                FROM `bigquery-public-data.stackoverflow.posts_questions` AS q
+                    FULL JOIN `bigquery-public-data.stackoverflow.posts_answers` AS a
+                ON q.owner_user_id = a.owner_user_id 
+                WHERE q.creation_date >= '2019-01-01' AND q.creation_date < '2019-02-01' 
+                    AND a.creation_date >= '2019-01-01' AND a.creation_date < '2019-02-01'
+                GROUP BY owner_user_id
+                """
+
+# Check your answer
+q_2.check()
+
+three_tables_query = """                      寻找在2019.1.1到2.1创建账户的人的信息，注意每个JOIN后面加一个ON才是正确语法
+                     SELECT u.id AS id,
+                         MIN(q.creation_date) AS q_creation_date,
+                         MIN(a.creation_date) AS a_creation_date
+                     FROM `bigquery-public-data.stackoverflow.users` AS u
+                         LEFT JOIN `bigquery-public-data.stackoverflow.posts_answers` AS a
+                             ON u.id = a.owner_user_id
+                         LEFT JOIN `bigquery-public-data.stackoverflow.posts_questions` AS q
+                             ON q.owner_user_id = u.id
+                     WHERE u.creation_date >= '2019-01-01' and u.creation_date < '2019-02-01'
+                     GROUP BY id
+                    """

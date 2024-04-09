@@ -1,0 +1,301 @@
+========================================CNN======================================================
+---------------分类编号------------------------
+# Read image 利用 OpenCV(cv2) 读入照片并存放在 numpy array 中
+def readfile(path, label):
+    # label 是一个 boolean variable, 代表需不需要回传 y 值
+    image_dir = sorted(os.listdir(path))  # os.listdir(path)将path路径下的文件名以列表形式读出
+    # print(os.listdir(path))
+    # print(image_dir)
+    x = np.zeros((len(image_dir), 128, 128, 3), dtype=np.uint8)
+    y = np.zeros((len(image_dir)), dtype=np.uint8)
+    for i, file in enumerate(image_dir):
+        img = cv2.imread(os.path.join(path, file))  # os.path.join(path, file) 路径名合并
+        x[i, :, :] = cv2.resize(img, (128, 128))
+        if label:
+            y[i] = int(file.split("_")[0])
+    if label:
+        return x, y
+    else:
+        return x
+
+
+# 分别将 training set、validation set、testing set 用 readfile 函式读进来
+workspace_dir = './food-11'
+print("Reading data")
+print("...")
+train_x, train_y = readfile(os.path.join(workspace_dir, "training"), True)
+# print("Size of training data = {}".format(len(train_x)))
+val_x, val_y = readfile(os.path.join(workspace_dir, "validation"), True)
+# print("Size of validation data = {}".format(len(val_x)
+test_x = readfile(os.path.join(workspace_dir, "testing"), False)
+# print("Size of Testing data = {}".format(len(test_x)))
+print("Reading data complicated")
+
+--------------------------datapipe------------------------------
+# Imports
+import os, warnings
+import matplotlib.pyplot as plt
+from matplotlib import gridspec
+
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing import image_dataset_from_directory
+
+# Reproducability
+def set_seed(seed=31415):
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ['TF_DETERMINISTIC_OPS'] = '1'
+set_seed()
+
+
+# Set Matplotlib defaults
+plt.rc('figure', autolayout=True)
+plt.rc('axes', labelweight='bold', labelsize='large',
+       titleweight='bold', titlesize=18, titlepad=10)
+plt.rc('image', cmap='magma')
+warnings.filterwarnings("ignore") # to clean up output cells
+
+
+# Load training and validation sets
+ds_train_ = image_dataset_from_directory(
+    '../input/car-or-truck/train',
+    labels='inferred',
+    label_mode='binary',
+    image_size=[128, 128],
+    interpolation='nearest',
+    batch_size=64,
+    shuffle=True,
+)
+ds_valid_ = image_dataset_from_directory(
+    '../input/car-or-truck/valid',
+    labels='inferred',
+    label_mode='binary',
+    image_size=[128, 128],
+    interpolation='nearest',
+    batch_size=64,
+    shuffle=False,
+)
+
+
+# Data Pipeline
+def convert_to_float(image, label):
+    image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+    return image, label
+
+AUTOTUNE = tf.data.experimental.AUTOTUNE
+ds_train = (
+    ds_train_
+    .map(convert_to_float)
+    .cache()
+    .prefetch(buffer_size=AUTOTUNE)
+)
+ds_valid = (
+    ds_valid_
+    .map(convert_to_float)
+    .cache()
+    .prefetch(buffer_size=AUTOTUNE)
+)
+
+=============================define cnn=====================================
+Notice in this definition is how the number of filters doubled block-by-block: 32, 64, 128. This is a common pattern. Since the MaxPool2D layer is reducing the size of the feature maps, we can afford to increase the quantity we create.
+
+from tensorflow import keras
+from tensorflow.keras import layers
+
+model = keras.Sequential([
+
+    # First Convolutional Block
+    layers.Conv2D(filters=32, kernel_size=5, activation="relu", padding='same',
+                  # give the input dimensions in the first layer
+                  # [height, width, color channels(RGB)]
+                  input_shape=[128, 128, 3]),
+    layers.MaxPool2D(),
+
+    # Second Convolutional Block
+    layers.Conv2D(filters=64, kernel_size=3, activation="relu", padding='same'),
+    layers.MaxPool2D(),
+
+    # Third Convolutional Block
+    layers.Conv2D(filters=128, kernel_size=3, activation="relu", padding='same'),
+    layers.MaxPool2D(),
+
+    # Classifier Head
+    layers.Flatten(),
+    layers.Dense(units=6, activation="relu"),
+    layers.Dense(units=1, activation="sigmoid"),
+])
+model.summary()
+================================train==========================================
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(epsilon=0.01),
+    loss='binary_crossentropy',
+    metrics=['binary_accuracy']
+)
+
+history = model.fit(
+    ds_train,
+    validation_data=ds_valid,
+    epochs=40,
+    verbose=0,
+)
+
+==================================Loss=========================================
+import pandas as pd
+
+history_frame = pd.DataFrame(history.history)
+history_frame.loc[:, ['loss', 'val_loss']].plot()
+history_frame.loc[:, ['binary_accuracy', 'val_binary_accuracy']].plot();
+
+===============================================================================
+# Reformat for batch compatibility.
+image = tf.image.convert_image_dtype(image, dtype=tf.float32)
+image = tf.expand_dims(image, axis=0)
+kernel = tf.reshape(kernel, [*kernel.shape, 1, 1])
+kernel = tf.cast(kernel, dtype=tf.float32)
+
+=======================GlobalAvgPool2D====================
+model = keras.Sequential([
+    pretrained_base,
+    layers.GlobalAvgPool2D(),
+    layers.Dense(1, activation='sigmoid'),
+])
+
+'''What is this layer doing? Notice that we no longer have the Flatten layer that usually comes after the base to transform the 2D feature data to 1D data needed by the classifier. Now the GlobalAvgPool2D layer is serving this function. But, instead of "unstacking" the feature (like Flatten), it simply replaces the entire feature map with its average value. Though very destructive, it often works quite well and has the advantage of reducing the number of parameters in the model.'''
+
+'''The VGG16 base produces 512 feature maps. We can think of each feature map as representing some high-level visual feature in the original image -- maybe a wheel or window. Pooling a map gives us a single number, which we could think of as a score for that feature: large if the feature is present, small if it is absent. Cars tend to score high with one set of features, and Trucks score high with another. Now, instead of trying to map raw features to classes, the head only has to work with these scores that GlobalAvgPool2D produced, a much easier problem for it to solve.'''
+
+'''In this lesson we explored the final operation in the feature extraction process: condensing with maximum pooling. Pooling is one of the essential features of convolutional networks and helps provide them with some of their characteristic advantages: efficiency with visual data, reduced parameter size compared to dense networks, translation invariance. We've seen that it's used not only in the base during feature extraction, but also can be used in the head during classification. Understanding it is essential to a full understanding of convnets.'''
+
+=================================time series===================================
+Here are some kernels sometimes used on time-series data:
+detrend = tf.constant([-1, 1], dtype=tf.float32)
+
+average = tf.constant([0.2, 0.2, 0.2, 0.2, 0.2], dtype=tf.float32)
+
+spencer = tf.constant([-3, -6, -5, 3, 21, 46, 67, 74, 67, 46, 32, 3, -5, -6, -3], dtype=tf.float32) / 320
+
+
+# UNCOMMENT ONE
+#kernel = detrend
+kernel = average
+# kernel = spencer
+
+# Reformat for TensorFlow
+ts_data = machinelearning.to_numpy()
+ts_data = tf.expand_dims(ts_data, axis=0)
+ts_data = tf.cast(ts_data, dtype=tf.float32)
+kern = tf.reshape(kernel, shape=(*kernel.shape, 1, 1))
+
+ts_filter = tf.nn.conv1d(
+    input=ts_data,
+    filters=kern,
+    stride=1,
+    padding='VALID',
+)
+
+# Format as Pandas Series
+machinelearning_filtered = pd.Series(tf.squeeze(ts_filter).numpy())
+
+machinelearning_filtered.plot();
+===================================================Explore Augmentation======================================================
+
+# all of the "factor" parameters indicate a percent-change
+augment = keras.Sequential([
+    # preprocessing.RandomContrast(factor=0.5),
+    #preprocessing.RandomFlip(mode='horizontal'), # meaning, left-to-right
+    # preprocessing.RandomFlip(mode='vertical'), # meaning, top-to-bottom
+    # preprocessing.RandomWidth(factor=0.15), # horizontal stretch
+    # preprocessing.RandomRotation(factor=0.20),
+    # preprocessing.RandomTranslation(height_factor=0.1, width_factor=0.1),
+])
+
+
+ex = next(iter(ds_train.unbatch().map(lambda x, y: x).batch(1)))
+
+plt.figure(figsize=(10,10))
+for i in range(16):
+    image = augment(ex, training=True)
+    plt.subplot(4, 4, i+1)
+    plt.imshow(tf.squeeze(image))
+    plt.axis('off')
+plt.show()
+
+
+===============================cv======================================
+
+from tensorflow import keras
+from tensorflow.keras import layers
+
+model = keras.Sequential([
+    layers.InputLayer(input_shape=[128, 128, 3]),
+    
+    # Data Augmentation
+    # ____,
+    preprocessing.RandomContrast(factor=0.10),
+    preprocessing.RandomFlip(mode='horizontal'),
+    preprocessing.RandomRotation(factor=0.10),
+    # Block One
+    layers.BatchNormalization(renorm=True),
+    layers.Conv2D(filters=64, kernel_size=3, activation='relu', padding='same'),
+    layers.MaxPool2D(),
+
+    # Block Two
+    layers.BatchNormalization(renorm=True),
+    layers.Conv2D(filters=128, kernel_size=3, activation='relu', padding='same'),
+    layers.MaxPool2D(),
+
+    # Block Three
+    layers.BatchNormalization(renorm=True),
+    layers.Conv2D(filters=256, kernel_size=3, activation='relu', padding='same'),
+    layers.Conv2D(filters=256, kernel_size=3, activation='relu', padding='same'),
+    layers.MaxPool2D(),
+
+    # Head
+    layers.BatchNormalization(renorm=True),
+    layers.Flatten(),
+    layers.Dense(8, activation='relu'),
+    layers.Dense(1, activation='sigmoid'),
+])
+
+========================================快速查看效果==========================================
+import tensorflow as tf
+
+image_condense = tf.nn.pool(
+    input=image_detect, # image in the Detect step above
+    window_shape=(2, 2),
+    pooling_type='MAX',
+    # we'll see what these do in the next lesson!
+    strides=(2, 2),
+    padding='SAME',
+)
+
+plt.figure(figsize=(6, 6))
+plt.imshow(tf.squeeze(image_condense))
+plt.axis('off')
+plt.show();
+
+#############
+image_filter = conv_fn(
+    input=image,
+    filters=kernel,
+    strides=1, # or (1, 1)
+    padding='SAME',
+)
+
+plt.imshow(
+    # Reformat for plotting
+    tf.squeeze(image_filter)
+)
+plt.axis('off')
+plt.show();
+#
+image_detect = relu_fn(image_filter)
+
+plt.imshow(
+    # Reformat for plotting
+    tf.squeeze(image_detect)
+)
+plt.axis('off')
+plt.show();

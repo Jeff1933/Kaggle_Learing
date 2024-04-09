@@ -1,0 +1,439 @@
+#要想help(自创函数)有显示，则要在自创函数里面注释。
+
+#help(planets.append) append单独对List起作用   所以用help时要在append前加对应list.
+
+#判断是否某元素在列表内 ys in list
+
+#在自创函数最后return a < 0 可判断是否输入数为负数
+
+#return int(cheese + pizza + hotdog) 可判断选哪一个
+
+#list
+x.bit_length()返回二进制需要多少位数
+x.imag 返回虚部
+
+#tuple
+	x = 0.125
+	x.as_integer_ratio()
+	(1, 8)
+	
+	numerator, denominator = x.as_integer_ratio()
+	print(numerator / denominator)
+	0.125
+
+
+#if char.isupper()可以找出大写单词
+
+#loud_short_planets = [planet.upper() + '!' for planet in planets if len(planet) < 6]
+== [
+    planet.upper() + '!' 
+    for planet in planets 
+    if len(planet) < 6
+]
+
+#[32 for planet in planets]
+#return any([num % 7 == 0 for num in nums])
+return any[i for i in range(len(meals)-1) if meals[i]==meals[i+1]]  这种情况i是数字，不能表达bool，所以语法错误
+return any(meals[i] == meals[i+1] for i in range(len(meals)-1)) 一般直接上条件
+
+*一个for循环里出现return即结束循环，所以要注意出现两个return的情况，一般便利只有一个return在for里面
+
+========================================STRING AND DIC============================================
+STRING
+# ALL CAPS
+claim = "Pluto is a planet!"
+claim.upper()
+
+# all lowercase
+claim.lower()
+
+# Searching for the first index of a substring
+in:claim.index('plan')
+out:11
+
+#in:claim.startswith(planet)
+ out:True
+
+#words = claim.split()
+words
+['Pluto', 'is', 'a', 'planet!']
+
+# Yes, we can put unicode characters right in our string literals :)
+' 👏 '.join([word.upper() for word in words])
+
+datestr = '1956-01-31'
+year, month, day = datestr.split('-')
+'/'.join([month, day, year])
+out:'01/31/1956'
+
+#连接字符串 planet + ", you'll always be the " + str(position) + "th planet to me."(position=9)
+
+s = """Pluto's a {0}.
+No, it's a {1}.
+{0}!
+{1}!""".format('planet', 'dwarf planet')
+print(s)
+
+out:Pluto's a planet.
+No, it's a dwarf planet.
+planet!
+dwarf planet!
+
+#def is_valid_zip(zip_code):
+    return len(zip_code) == 5 and zip_code.isdigit() 后半部分检测是否为整数
+从外到内，能否直接从内到外
+
+
+***for i, doc in enumerate(doc_list):
+        # Split the string doc into a list of words (according to whitespace)
+        tokens = doc.split()
+        # Make a transformed list where we 'normalize' each word to facilitate matching.
+        # Periods and commas are removed from the end of each word, and it's set to all lowercase.
+        normalized = [token.rstrip('.,').lower() for token in tokens
+
+========================================panda==================================================
+*
+pd.set_option("display.max_rows", 5)
+
+
+pd.DataFrame({'Bob': ['I liked it.', 'It was awful.'], 
+              'Sue': ['Pretty good.', 'Bland.']},
+             index=['Product A', 'Product B'])
+
+pd.Series([1, 2, 3, 4, 5])
+
+pd.Series([30, 35, 40], index=['2015 Sales', '2016 Sales', '2017 Sales'], name='Product A')
+
+
+review = pd.read_csv()
+
+review.to_csv('./')
+
+#方便记录review.shape().head()
+
+reviews.set_index("title")
+
+#判断检测
+reviews.country == 'Italy'
+
+reviews.loc[reviews.country == 'Italy']
+
+reviews.loc[(reviews.country == 'Italy') & (reviews.points >= 90)] and
+
+reviews.loc[(reviews.country == 'Italy') | (reviews.points >= 90)] or
+
+reviews.loc[reviews.price.notnull()] isnull()
+
+reviews.loc[reviews.country.isin(['Italy', 'France'])]
+
+# 排序&新增列
+reviews['index_backwards'] = range(len(reviews), 0, -1) //将reviews中的索引值（从0开始）按照从大到小的顺序排列，结果存储在reviews['index_backwards']
+
+# 快捷命令
+describe
+mean 
+value_counts() #算一下每个种类出现的次数
+unique#可以不重复的输出一条有什么类型 
+median
+
+Map
+通过函数映射列中的值,例如,将列“points”中的每个值减去其平均值
+review_points_mean = reviews.points.mean()
+1.
+reviews.points.map(lambda p: p - review_points_mean) == review.points - review_points_mean
+2.
+def remean_points(row):
+    row.points = row.points - review_points_mean
+    return row
+
+reviews.apply(remean_points, axis='columns') apply它会自适应函数里面的列😅，然后没有return只能返回None，它不会修改dataframe，
+3.
+reviews.description.map(lambda desc: "tropical" in desc).sum()
+
+\运算
+review_points_mean = reviews.points.mean()
+reviews.points - review_points_mean
+
+reviews.country + " - " + reviews.region_1  // 拼接列
+
+'''
+Create variable centered_price containing a version of the price column with the mean price subtracted.
+
+(Note: this 'centering' transformation is a common preprocessing step before applying various machine learning algorithms.)'''
+
+reviews.groupby('points').points.count()
+
+reviews.groupby('points').price.min()
+
+reviews.groupby('winery').apply(lambda df: df.title.iloc[0]) //第一个的title
+
+reviews.groupby(['country', 'province']).apply(lambda df: df.loc[df.points.idxmax()]) //最大值
+
+reviews.groupby(['country']).price.agg([len, min, max]) //more effective
+
+countries_reviewed = reviews.groupby(['country', 'province']).description.agg([len])
+countries_reviewed
+
+countries_reviewed.reset_index()
+
+countries_reviewed = countries_reviewed.reset_index()
+countries_reviewed.sort_values(by='len')
+
+countries_reviewed.sort_values(by='len', ascending=False)
+
+countries_reviewed.sort_index()  // 按索引排序
+
+countries_reviewed.sort_values(by=['country', 'len'])  //a-z
+
+size() #直接将dataframe变成series
+
+reviews.points.astype('float64')
+
+reviews.dtypes  reviews.index.dtype  reviews[pd.isnull(reviews.country)]  reviews.region_2.fillna("Unknown")#这里是把没有数值的都填上
+
+reviews.taster_twitter_handle.replace("@kerinokeefe", "@kerino")
+
+reviews.rename(columns={'points': 'score'})
+
+reviews.rename(index={0: 'firstEntry', 1: 'secondEntry'})
+
+reviews.rename_axis("wines", axis='rows').rename_axis("fields", axis='columns')
+
+pd.concat([canadian_youtube, british_youtube])
+
+left = canadian_youtube.set_index(['title', 'trending_date'])
+right = british_youtube.set_index(['title', 'trending_date'])
+
+left.join(right, lsuffix='_CAN', rsuffix='_UK')
+
+*ymistake
+bargain_idx = (reviews.points / reviews.price).idxmax()
+bargain_wine = reviews.loc[bargain_idx, 'title']
+
+
+
+=========================数据可视化============================
+#初始化
+import pandas as pd
+pd.plotting.register_matplotlib_converters()
+import matplotlib.pyplot as plt
+%matplotlib inline
+import seaborn as sns
+print("Setup Complete")
+
+spotify_data = pd.read_csv(spotify_filepath, index_col="Date", parse_dates=True)
+#检查数据示例
+spotify_data.head()
+spotify_data.tail()
+list(spotify_data.columns)
+
+#方法
+sns.lineplot(data=spotify_data['Shape of You'], label="Shape of You") //适用于描绘时间列的数字变化
+plt.figure(figsize=(14,6))
+plt.title("")
+plt.xlabel("")
+
+sns.barplot(x=flight_data.index, y=flight_data['NK']), #一般x为data的第一列，即data.index,条形图
+
+sns.heatplot(data=)
+
+sns.scatter(x=data[], y=data[], hue=data[]) #散点图， hue的功能:除了x,y两个特诊外,颜色标记是否有第三特征
+
+sns.regplot(同上) #回归,如果上面的散点图看不出线性关系,用这个
+
+sns.lmplot(x="bmi", y="charges", hue="smoker", data=insurance_data) #双回归,有某特征和无该特征
+
+sns.swarmplot(x=insurance_data['smoker'],
+              y=insurance_data['charges']) #用特定轴有无该特征的比较
+   
+# Histograms for each species
+sns.histplot(data=iris_data, x='Petal Length (cm)', hue='Species') #这里用了两个特诊
+# KDE plots for each species 密度图
+sns.kdeplot(data=iris_data, x='Petal Length (cm)', hue='Species', shade=True)
+
+# Add title
+plt.title("Distribution of Petal Lengths, by Species")
+# 2D KDE plot 同时显示两个特征的密度图
+sns.jointplot(x=iris_data['Petal Length (cm)'], y=iris_data['Sepal Width (cm)'], kind="kde")
+# KDE plot 
+sns.kdeplot(data=iris_data['Petal Length (cm)'], shade=True)
+# Histogram 
+sns.histplot(iris_data['Petal Length (cm)'])
+
+# Change the style of the figure to the "dark" theme
+sns.set_style("dark")
+(1)"darkgrid", (2)"whitegrid", (3)"dark", (4)"white", and (5)"ticks"
+
+===========================================data cleaning=========================================================              
+# plotting modules
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# set seed for reproducibility
+np.random.seed(0)
+
+
+// Handing Missing Value
+# get the number of missing data points per column
+missing_values_count = nfl_data.isnull().sum()
+
+# look at the # of missing points in the first ten columns
+missing_values_count[0:10]
+
+# how many total missing values do we have?
+total_cells = np.product(nfl_data.shape)
+total_missing = missing_values_count.sum()
+
+# percent of data that is missing
+percent_missing = (total_missing/total_cells) * 100
+print(percent_missing)
+
+
+# replace all NA's the value that comes directly after it in the same column, 
+# then replace all the remaining na's with 0
+subset_nfl_data.fillna(method='bfill', axis=0).fillna(0)
+
+# replace all NA's with 0
+subset_nfl_data.fillna(0)
+
+# remove all columns with at least one missing value
+columns_with_na_dropped = nfl_data.dropna(axis=1)
+columns_with_na_dropped.head()
+
+// Scaling and Normalization
+# set up
+# modules we'll use
+import pandas as pd
+import numpy as np
+
+# for Box-Cox Transformation
+from scipy import stats
+
+# for min_max scaling
+from mlxtend.preprocessing import minmax_scaling
+
+eg1:Scaling
+# generate 1000 data points randomly drawn from an exponential distribution
+original_data = np.random.exponential(size=1000)
+
+# mix-max scale the data between 0 and 1
+scaled_data = minmax_scaling(original_data, columns=[0])
+
+# plot both together to compare
+fig, ax = plt.subplots(1, 2, figsize=(15, 3))
+sns.histplot(original_data, ax=ax[0], kde=True, legend=False)
+ax[0].set_title("Original Data")
+sns.histplot(scaled_data, ax=ax[1], kde=True, legend=False)
+ax[1].set_title("Scaled data")
+plt.show()
+
+eg2:Normalization
+# normalize the exponential data with boxcox
+normalized_data = stats.boxcox(original_data)
+.......下面代码与上面eg1近似........
+
+ex:Normalization要求数据值大于1
+positive = kickstarters_2017.pledged > 0
+dataframe = kickstarters_2017.pledged.loc[positive]
+series = pd.Series(stats.boxcox(dataframe)[0], 
+                   name = 'pledged', index = dataframe.index)
+                
+ax = sns.histplot(series,kde = True)
+ax.set_title('Normalize pledged')
+plt.show()
+
+// Parsing Dates
+http://pandas.pydata.org/pandas-docs/stable/basics.html#dtypes
+# create a new column, date_parsed, with the parsed dates
+landslides['date_parsed'] = pd.to_datetime(landslides['date'], format="%m/%d/%y")
+
+# auto but not effective
+landslides['date_parsed'] = pd.to_datetime(landslides['Date'], infer_datetime_format=True)
+earthquakes['date_parsed'] = pd.to_datetime(earthquakes['Date'], format='mixed')
+# get the day of the month from the date_parsed column 能够让我们看到每个月中的1-30天的出现频率,这里是滑坡日期
+day_of_month_landslides = landslides['date_parsed'].dt.day
+day_of_month_landslides.head()
+
+# remove na's
+day_of_month_landslides = day_of_month_landslides.dropna()
+
+# plot the day of the month
+sns.distplot(day_of_month_landslides, kde=False, bins=31)
+
+ex:
+\\ This does appear to be an issue with data entry: ideally, all entries in the column have the same format.
+We can get an idea of how widespread this issue is by checking the length of each entry in the "Date" column.
+
+date_lengths = earthquakes.Date.str.len()
+date_lengths.value_counts()
+
+# find the unexpect index
+indices = np.where([date_lengths == 24])[1]
+print('Indices with corrupted data:', indices)
+earthquakes.loc[indices]
+
+----------------------------------Feature Engineering----------------------------
+
+goal:提高模型的预测性能;减少计算或数据需求;提高结果的可解释性
+
+# 在特征工程过程开始时，建立这样的基线是很好的做法。
+# 基线分数可以帮助您确定新功能是否值得保留，或者是否应该丢弃它们并可能尝试其他功能。
+
+X = df.copy()
+y = X.pop("CompressiveStrength")
+
+# Train and score baseline model
+baseline = RandomForestRegressor(criterion="absolute_error", random_state=0)
+baseline_score = cross_val_score(
+    baseline, X, y, cv=5, scoring="neg_mean_absolute_error"
+)
+baseline_score = -1 * baseline_score.mean()
+
+print(f"MAE Baseline Score: {baseline_score:.4}")
+
+# 如果你曾经在家做饭，你可能知道食谱中的成分比例通常比它们的绝对数量更能预测食谱的结果。
+# 那么，我们可以推断，上述特征的比率将是 CompressiveStrength 的一个很好的预测指标。
+
+# 下面的单元格向数据集添加了三个新的比率要素。
+
+X = df.copy()
+y = X.pop("CompressiveStrength")
+
+# Create synthetic features
+X["FCRatio"] = X["FineAggregate"] / X["CoarseAggregate"]
+X["AggCmtRatio"] = (X["CoarseAggregate"] + X["FineAggregate"]) / X["Cement"]
+X["WtrCmtRatio"] = X["Water"] / X["Cement"]
+
+# Train and score model on dataset with additional ratio features
+model = RandomForestRegressor(criterion="absolute_error", random_state=0)
+score = cross_val_score(
+    model, X, y, cv=5, scoring="neg_mean_absolute_error"
+)
+score = -1 * score.mean()
+
+print(f"MAE Score with Ratio Features: {score:.4}")
+
+# Mutual Information
+面对新数据：一个很好的第一步是使用特征效用指标构建排名，该指标是衡量特征与目标之间关联的函数。
+然后，您可以选择一小部分最有用的功能进行初步开发，并更有信心您的时间将得到充分利用。
+
+我们将使用的指标称为“相互信息”。互信息很像相关性，因为它衡量两个量之间的关系。
+互信息的优点是它可以检测任何类型的关系，而相关性只能检测线性关系。
+
+互信息是一个很好的通用指标，在功能开发开始时特别有用，因为你可能还不知道你想使用什么模型。
+
+优点：
+易于使用和解释，计算效率，理论上有充分的根据，抗过拟合，以及能够检测任何类型的关系
+tips:有关这个标题的代码，储存在ml.ipynb
+
+# Create Features
+研究数据集领域相关的知识，来寻求新的派生特征
+
+Mathematical Transforms
+
+数值特征之间的关系通常通过数学公式来表示，作为领域研究的一部分，您经常会遇到这些公式。
+在 Pandas 中，您可以将算术运算应用于列，就像它们是普通数字一样。
+
+
+
+
